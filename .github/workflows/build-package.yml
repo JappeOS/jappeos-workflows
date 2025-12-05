@@ -17,24 +17,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout package
+    - name: Checkout package repo
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Build package inside Arch container
       run: |
-        sudo apt update
-        sudo apt install -y arch-install-scripts fakeroot git
+        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace archlinux:latest /bin/bash -c "
+          # Create non-root user
+          useradd -m builder
+          passwd -d builder
 
-    - name: Install Flutter (optional)
-      if: ${{ inputs.flutter }}
-      run: |
-        sudo snap install flutter --classic
+          # Install dependencies
+          pacman -Sy --noconfirm base-devel git meson gtk3 adwaita-fonts arch-install-scripts fakeroot pkgconf
+          if [ "${{ inputs.flutter }}" = "true" ]; then
+            snap install flutter --classic
+          fi
 
-    - name: Build package
-      run: |
-        makepkg -sf --noconfirm
+          # Switch to builder
+          su - builder -c '
+            cd /workspace
+            # Optionally: generate b2sums
+            # makepkg -g >> PKGBUILD
+            makepkg -sf --noconfirm
+          '
+        "
 
-    - name: Upload artifact
+    - name: Upload built package to workflow artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.package-name }}
@@ -55,11 +63,11 @@ jobs:
         cd jappeos-repo/josrepo
         repo-add josrepo.db.tar.gz *.pkg.tar.*
 
-    - name: Commit and push
+    - name: Commit and push updates
       run: |
         cd jappeos-repo
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
-        git add .
+        git add josrepo/
         git commit -m "Update ${{ inputs.package-name }}"
         git push
