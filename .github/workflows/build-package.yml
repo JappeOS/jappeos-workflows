@@ -77,8 +77,11 @@ jobs:
 
     - name: Add package to repo
       run: |
-        docker run --rm -v ${{ github.workspace }}/jappeos-repo:/repo -w /repo archlinux:latest /bin/bash -c "
+        docker run --rm -v ${{ github.workspace }}:/workspace -v ${{ github.workspace }}/jappeos-repo:/repo -w /repo archlinux:latest /bin/bash -c "
           pacman -Sy --noconfirm pacman-contrib
+          mkdir -p josrepo
+          # Copy built packages from workspace into repo
+          cp /workspace/*.pkg.tar.* josrepo/
           cd josrepo
           repo-add josrepo.db.tar.gz *.pkg.tar.*
         "
