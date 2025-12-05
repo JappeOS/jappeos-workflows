@@ -45,7 +45,7 @@ jobs:
           fi
 
           pacman -Sy --noconfirm sudo
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
           # Switch to builder
           su - builder -c '
