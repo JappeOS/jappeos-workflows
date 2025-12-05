@@ -77,10 +77,11 @@ jobs:
 
     - name: Add package to repo
       run: |
-        mkdir -p jappeos-repo/josrepo
-        cp ./*.pkg.tar.* jappeos-repo/josrepo/
-        cd jappeos-repo/josrepo
-        repo-add josrepo.db.tar.gz *.pkg.tar.*
+        docker run --rm -v ${{ github.workspace }}/jappeos-repo:/repo -w /repo archlinux:latest /bin/bash -c "
+          pacman -Sy --noconfirm pacman-contrib
+          cd josrepo
+          repo-add josrepo.db.tar.gz *.pkg.tar.*
+        "
 
     - name: Commit and push updates
       run: |
