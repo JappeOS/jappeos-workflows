@@ -57,7 +57,7 @@ jobs:
             # makepkg -g >> PKGBUILD
             makepkg -sf --noconfirm
 
-            cp ./*.pkg.tar.* /workspace/
+            sudo cp ./*.pkg.tar.* /workspace/
           '
         "
 
