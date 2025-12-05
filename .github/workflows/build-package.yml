@@ -1,0 +1,65 @@
+name: Build Pacman Package
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        description: "Name of the package being built"
+        required: true
+        type: string
+      flutter:
+        description: "Whether to install Flutter for build"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout package
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y arch-install-scripts fakeroot git
+
+    - name: Install Flutter (optional)
+      if: ${{ inputs.flutter }}
+      run: |
+        sudo snap install flutter --classic
+
+    - name: Build package
+      run: |
+        makepkg -sf --noconfirm
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.package-name }}
+        path: ./*.pkg.tar.*
+
+    - name: Checkout binary repo
+      uses: actions/checkout@v4
+      with:
+        repository: JappeOS/jappeos-repo
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: gh-pages
+        path: jappeos-repo
+
+    - name: Add package to repo
+      run: |
+        mkdir -p jappeos-repo/josrepo
+        cp ./*.pkg.tar.* jappeos-repo/josrepo/
+        cd jappeos-repo/josrepo
+        repo-add josrepo.db.tar.gz *.pkg.tar.*
+
+    - name: Commit and push
+      run: |
+        cd jappeos-repo
+        git config user.name "github-actions"
+        git config user.email "github-actions@github.com"
+        git add .
+        git commit -m "Update ${{ inputs.package-name }}"
+        git push
