@@ -1,5 +1,16 @@
 name: Build Pacman Package
 on:
+  workflow_dispatch:
+    inputs:
+      package-name:
+        description: "Name of the package being built"
+        required: true
+        type: string
+      flutter:
+        description: "Whether to install Flutter for build"
+        required: false
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       package-name:
@@ -32,6 +43,9 @@ jobs:
           if [ "${{ inputs.flutter }}" = "true" ]; then
             snap install flutter --classic
           fi
+
+          pacman -Sy --noconfirm sudo
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 
           # Switch to builder
           su - builder -c '
