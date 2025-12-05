@@ -35,10 +35,15 @@ jobs:
 
           # Switch to builder
           su - builder -c '
-            cd /workspace
+            mkdir -p /home/builder/build
+            cp -r /workspace/* /home/builder/build/
+            cd /home/builder/build
+
             # Optionally: generate b2sums
             # makepkg -g >> PKGBUILD
             makepkg -sf --noconfirm
+
+            cp ./*.pkg.tar.* /workspace/
           '
         "
 
