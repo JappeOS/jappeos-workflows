@@ -71,7 +71,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: JappeOS/jappeos-repo
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.JAPPEOS_REPO_PAT }}
         ref: gh-pages
         path: jappeos-repo
 
