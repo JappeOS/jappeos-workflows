@@ -47,8 +47,9 @@ jobs:
             pacman -S --needed --noconfirm unzip curl clang cmake ninja
 
             # Install Flutter SDK manually
-            curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_latest-stable.tar.xz -o flutter.tar.xz
-            tar xf flutter.tar.xz
+            curl -fL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.4-stable.tar.xz -o flutter.tar.xz
+            file flutter.tar.xz
+            tar -xf flutter.tar.xz
             mv flutter /opt/flutter
             chown -R builder:builder /opt/flutter
           fi
