@@ -42,7 +42,7 @@ jobs:
           pacman -Syu --noconfirm
           pacman -S --needed --noconfirm \
             base-devel git meson gtk3 adwaita-fonts \
-            arch-install-scripts fakeroot pkgconf sudo
+            arch-install-scripts fakeroot pkgconf sudo rsync
           if [ "${{ inputs.flutter }}" = "true" ]; then
             pacman -S --needed --noconfirm flutter clang cmake ninja
           fi
