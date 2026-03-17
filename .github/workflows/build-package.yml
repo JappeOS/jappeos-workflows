@@ -44,7 +44,13 @@ jobs:
             base-devel git meson gtk3 adwaita-fonts \
             arch-install-scripts fakeroot pkgconf sudo rsync
           if [ "${{ inputs.flutter }}" = "true" ]; then
-            pacman -S --needed --noconfirm flutter clang cmake ninja
+            pacman -S --needed --noconfirm unzip curl clang cmake ninja
+
+            # Install Flutter SDK manually
+            curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_latest-stable.tar.xz -o flutter.tar.xz
+            tar xf flutter.tar.xz
+            mv flutter /opt/flutter
+            chown -R builder:builder /opt/flutter
           fi
 
           pacman -Scc --noconfirm
@@ -53,6 +59,7 @@ jobs:
           # Switch to builder
           su - builder -c '
             set -e
+            export PATH=/opt/flutter/bin:$PATH
             FLUTTER=${{ inputs.flutter }}
             
             mkdir -p /home/builder/build
