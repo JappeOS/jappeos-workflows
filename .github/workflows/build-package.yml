@@ -39,19 +39,29 @@ jobs:
           passwd -d builder
 
           # Install dependencies
-          pacman -Sy --noconfirm base-devel git meson gtk3 adwaita-fonts arch-install-scripts fakeroot pkgconf
+          pacman -Syu --noconfirm
+          pacman -S --needed --noconfirm \
+            base-devel git meson gtk3 adwaita-fonts \
+            arch-install-scripts fakeroot pkgconf sudo
           if [ "${{ inputs.flutter }}" = "true" ]; then
-            snap install flutter --classic
+            pacman -S --needed --noconfirm flutter clang cmake ninja
           fi
 
-          pacman -Sy --noconfirm sudo
+          pacman -Scc --noconfirm
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
           # Switch to builder
           su - builder -c '
+            set -e
+            FLUTTER=${{ inputs.flutter }}
+            
             mkdir -p /home/builder/build
-            cp -r /workspace/* /home/builder/build/
+            rsync -a --exclude=\".git\" /workspace/ /home/builder/build/
             cd /home/builder/build
+
+            if [ \"$FLUTTER\" = \"true\" ]; then
+              flutter precache --linux
+            fi
 
             # Optionally: generate b2sums
             # makepkg -g >> PKGBUILD
@@ -78,12 +88,12 @@ jobs:
     - name: Add package to repo
       run: |
         docker run --rm -v ${{ github.workspace }}:/workspace -v ${{ github.workspace }}/jappeos-repo:/repo -w /repo archlinux:latest /bin/bash -c "
-          pacman -Sy --noconfirm pacman-contrib
+          pacman -Syu --needed --noconfirm pacman-contrib
           mkdir -p josrepo
           # Copy built packages from workspace into repo
           cp /workspace/*.pkg.tar.* josrepo/
           cd josrepo
-          repo-add josrepo.db.tar.gz *.pkg.tar.*
+          repo-add -R josrepo.db.tar.gz *.pkg.tar.*
         "
 
     - name: Commit and push updates
