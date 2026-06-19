@@ -1,114 +1,167 @@
 name: Build Pacman Package
+
 on:
   workflow_dispatch:
     inputs:
       package-name:
-        description: "Name of the package being built"
+        description: "Name of the package"
         required: true
         type: string
       flutter:
-        description: "Whether to install Flutter for build"
+        description: "Install Flutter for build"
         required: false
         type: boolean
         default: false
+      channel:
+        description: "Target channel: dev | testing | stable"
+        required: false
+        type: string
+        default: "dev"
   workflow_call:
     inputs:
       package-name:
-        description: "Name of the package being built"
+        description: "Name of the package"
         required: true
         type: string
       flutter:
-        description: "Whether to install Flutter for build"
+        description: "Install Flutter for build"
         required: false
         type: boolean
         default: false
+      channel:
+        description: "Target channel: dev | testing | stable"
+        required: false
+        type: string
+        default: "dev"
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout package repo
-      uses: actions/checkout@v4
+      - name: Checkout package repo
+        uses: actions/checkout@v4
 
-    - name: Build package inside Arch container
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace archlinux:latest /bin/bash -c "
-          # Create non-root user
-          useradd -m builder
-          passwd -d builder
+      - name: Build package inside Arch container
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace archlinux:latest /bin/bash -c "
+            useradd -m builder
+            passwd -d builder
 
-          # Install dependencies
-          pacman -Syu --noconfirm
-          pacman -S --needed --noconfirm \
-            base-devel git meson gtk3 adwaita-fonts \
-            arch-install-scripts fakeroot pkgconf sudo rsync
-          if [ "${{ inputs.flutter }}" = "true" ]; then
-            pacman -S --needed --noconfirm unzip curl clang cmake ninja
+            pacman -Syu --noconfirm
+            pacman -S --needed --noconfirm \
+              base-devel git meson gtk3 adwaita-fonts \
+              arch-install-scripts fakeroot pkgconf sudo rsync
 
-            # Install Flutter SDK manually
-            curl -fL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.4-stable.tar.xz -o flutter.tar.xz
-            file flutter.tar.xz
-            tar -xf flutter.tar.xz
-            mv flutter /opt/flutter
-            chown -R builder:builder /opt/flutter
-          fi
-
-          pacman -Scc --noconfirm
-          echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
-
-          # Switch to builder
-          su - builder -c '
-            set -e
-            export PATH=/opt/flutter/bin:$PATH
-            FLUTTER=${{ inputs.flutter }}
-            
-            mkdir -p /home/builder/build
-            rsync -a --exclude=\".git\" /workspace/ /home/builder/build/
-            cd /home/builder/build
-
-            if [ \"$FLUTTER\" = \"true\" ]; then
-              flutter precache --linux
+            if [ '${{ inputs.flutter }}' = 'true' ]; then
+              pacman -S --needed --noconfirm unzip curl clang cmake ninja
+              curl -fL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.4-stable.tar.xz -o flutter.tar.xz
+              tar -xf flutter.tar.xz
+              mv flutter /opt/flutter
+              chown -R builder:builder /opt/flutter
             fi
 
-            # Optionally: generate b2sums
-            # makepkg -g >> PKGBUILD
-            makepkg -sf --noconfirm
+            pacman -Scc --noconfirm
+            echo 'builder ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 
-            sudo cp ./*.pkg.tar.* /workspace/
-          '
-        "
+            su - builder -c '
+              set -e
+              export PATH=/opt/flutter/bin:\$PATH
+              FLUTTER=${{ inputs.flutter }}
+              CHANNEL=${{ inputs.channel }}
 
-    - name: Upload built package to workflow artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.package-name }}
-        path: ./*.pkg.tar.*
+              mkdir -p /home/builder/build
+              rsync -a --exclude=\".git\" /workspace/ /home/builder/build/
+              cd /home/builder/build
 
-    - name: Checkout binary repo
-      uses: actions/checkout@v4
-      with:
-        repository: JappeOS/jappeos-repo
-        token: ${{ secrets.JAPPEOS_ORG_PAT }}
-        ref: gh-pages
-        path: jappeos-repo
+              if [ \"\$FLUTTER\" = \"true\" ]; then
+                flutter precache --linux
+              fi
 
-    - name: Add package to repo
-      run: |
-        docker run --rm -v ${{ github.workspace }}:/workspace -v ${{ github.workspace }}/jappeos-repo:/repo -w /repo archlinux:latest /bin/bash -c "
-          pacman -Syu --needed --noconfirm pacman-contrib
-          mkdir -p josrepo
-          # Copy built packages from workspace into repo
-          cp /workspace/*.pkg.tar.* josrepo/
-          cd josrepo
-          repo-add -R josrepo.db.tar.gz *.pkg.tar.*
-        "
+              # Dev builds have no GitHub tag yet - create a local source tarball
+              # so makepkg does not attempt to download from a non-existent tag URL.
+              # makepkg skips download if the expected local filename already exists.
+              if [ \"\$CHANNEL\" = \"dev\" ]; then
+                PKGNAME=\$(grep \"^pkgname=\" PKGBUILD | cut -d= -f2 | tr -d \" \")
+                PKGVER=\$(grep  \"^pkgver=\" PKGBUILD | cut -d= -f2 | tr -d \" \")
+                TARNAME=\"\${PKGNAME}-\${PKGVER}.tar.gz\"
+                echo \"Creating local source tarball: \$TARNAME\"
+                tar -czf \"\$TARNAME\" \
+                  --transform \"s|^\./|\${PKGNAME}-\${PKGVER}/|\" \
+                  --exclude=\".git\" --exclude=\"*.pkg.tar.*\" --exclude=\"\$TARNAME\" \
+                  .
+              fi
 
-    - name: Commit and push updates
-      run: |
-        cd jappeos-repo
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-        git add josrepo/
-        git commit -m "Update ${{ inputs.package-name }}"
-        git push
+              makepkg -sf --noconfirm
+              sudo cp ./*.pkg.tar.* /workspace/
+            '
+          "
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.package-name }}
+          path: ./*.pkg.tar.*
+
+      - name: Checkout binary repo
+        uses: actions/checkout@v4
+        with:
+          repository: JappeOS/jappeos-repo
+          token: ${{ secrets.JAPPEOS_ORG_PAT }}
+          ref: gh-pages
+          path: jappeos-repo
+
+      - name: Add package to channel
+        run: |
+          CHANNEL="${{ inputs.channel }}"
+          case "$CHANNEL" in
+            stable)  DB_NAME="jappeos" ;;
+            testing) DB_NAME="jappeos-testing" ;;
+            dev)     DB_NAME="jappeos-dev" ;;
+            *)       echo "Unknown channel: $CHANNEL"; exit 1 ;;
+          esac
+
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            -v ${{ github.workspace }}/jappeos-repo:/repo \
+            archlinux:latest /bin/bash -c "
+              pacman -Syu --needed --noconfirm pacman-contrib
+              mkdir -p /repo/$CHANNEL
+              cp /workspace/*.pkg.tar.* /repo/$CHANNEL/
+              cd /repo/$CHANNEL
+              # -R removes old versions of the same package from the DB
+              repo-add -R ${DB_NAME}.db.tar.gz *.pkg.tar.*
+            "
+
+      - name: Commit and push (with retry for concurrent builds)
+        run: |
+          CHANNEL="${{ inputs.channel }}"
+
+          cd jappeos-repo
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          for i in 1 2 3 4 5; do
+            # Pull before each attempt so we rebase onto latest DB state
+            git fetch origin gh-pages
+            git rebase origin/gh-pages
+
+            # Re-run repo-add after rebase so the DB reflects any concurrent additions
+            docker run --rm \
+              -v ${{ github.workspace }}:/workspace \
+              -v ${{ github.workspace }}/jappeos-repo:/repo \
+              archlinux:latest /bin/bash -c "
+                pacman -Syu --needed --noconfirm pacman-contrib
+                cd /repo/$CHANNEL
+                repo-add -R ${DB_NAME}.db.tar.gz *.pkg.tar.*
+              " 2>/dev/null
+
+            git add "$CHANNEL/"
+            git commit -m "[$CHANNEL] Update ${{ inputs.package-name }}" || true
+
+            git push && break
+
+            echo "Push attempt $i/5 failed - retrying in $((i * 3))s..."
+            git reset HEAD~1 2>/dev/null || true
+            sleep $((i * 3))
+          done
