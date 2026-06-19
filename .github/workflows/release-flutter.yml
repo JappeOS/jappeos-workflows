@@ -83,5 +83,11 @@ jobs:
           git push https://x-access-token:${{ secrets.JAPPEOS_ORG_PAT }}@github.com/${{ github.repository }}.git "$TAG"
 
       - name: Output commit SHA
-        run: echo "sha=${GITHUB_SHA}" >> $GITHUB_OUTPUT
         id: commit
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+
+          git fetch origin "refs/tags/$TAG"
+          SHA=$(git rev-list -n 1 "$TAG")
+
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
