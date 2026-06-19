@@ -39,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout package repo
+        uses: actions/checkout@v4
+
       - name: Get channel
         id: channel
         run: |
@@ -49,9 +52,6 @@ jobs:
           
           CHANNEL="${CHANNEL:-${{ inputs.channel }}}"
           echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
-    
-      - name: Checkout package repo
-        uses: actions/checkout@v4
 
       - name: Build package inside Arch container
         run: |
