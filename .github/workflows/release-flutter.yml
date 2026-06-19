@@ -53,9 +53,11 @@ jobs:
       - name: Update PKGBUILD
         if: steps.tag_check.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${{ steps.tag.outputs.tag }}"
           sed -i "s/^pkgver=.*/pkgver=$VERSION/" PKGBUILD
           sed -i "s/^pkgrel=.*/pkgrel=1/"        PKGBUILD
+          sed -i "s/^_tag=.*/_tag=$TAG/"         PKGBUILD
 
       - name: Commit and push updated PKGBUILD
         if: steps.tag_check.outputs.exists == 'false'
