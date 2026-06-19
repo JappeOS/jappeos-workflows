@@ -55,6 +55,9 @@ jobs:
           git add PKGBUILD
           git commit -m "chore: sync PKGBUILD to v$VERSION [skip ci]"
           git push origin HEAD:${{ github.ref_name }}
+          git fetch origin
+          git checkout "${{ github.ref_name }}"
+          git reset --hard "origin/${{ github.ref_name }}"
 
       - name: Create and push version tag
         if: steps.tag_check.outputs.exists == 'false'
