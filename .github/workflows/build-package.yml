@@ -39,6 +39,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Get channel
+        id: channel
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+            CHANNEL="${TAG%%-v*}"
+          fi
+          
+          CHANNEL="${CHANNEL:-${{ inputs.channel }}}"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+    
       - name: Checkout package repo
         uses: actions/checkout@v4
 
@@ -68,7 +79,7 @@ jobs:
               set -e
               export PATH=/opt/flutter/bin:\$PATH
               FLUTTER=${{ inputs.flutter }}
-              CHANNEL=${{ inputs.channel }}
+              CHANNEL=${{ steps.channel.outputs.channel }}
 
               mkdir -p /home/builder/build
               rsync -a --exclude=\".git\" /workspace/ /home/builder/build/
@@ -76,20 +87,6 @@ jobs:
 
               if [ \"\$FLUTTER\" = \"true\" ]; then
                 flutter precache --linux
-              fi
-
-              # Dev builds have no GitHub tag yet - create a local source tarball
-              # so makepkg does not attempt to download from a non-existent tag URL.
-              # makepkg skips download if the expected local filename already exists.
-              if [ \"\$CHANNEL\" = \"dev\" ]; then
-                PKGNAME=\$(grep \"^pkgname=\" PKGBUILD | cut -d= -f2 | tr -d \" \")
-                PKGVER=\$(grep  \"^pkgver=\" PKGBUILD | cut -d= -f2 | tr -d \" \")
-                TARNAME=\"\${PKGNAME}-\${PKGVER}.tar.gz\"
-                echo \"Creating local source tarball: \$TARNAME\"
-                tar -czf \"\$TARNAME\" \
-                  --transform \"s|^\./|\${PKGNAME}-\${PKGVER}/|\" \
-                  --exclude=\".git\" --exclude=\"*.pkg.tar.*\" --exclude=\"\$TARNAME\" \
-                  .
               fi
 
               makepkg -sf --noconfirm
@@ -112,9 +109,9 @@ jobs:
           path: jappeos-repo
 
       - name: Add package to channel
-        if: inputs.channel != 'none'
+        if: steps.channel.outputs.channel != 'none'
         run: |
-          CHANNEL="${{ inputs.channel }}"
+          CHANNEL="${{ steps.channel.outputs.channel }}"
           case "$CHANNEL" in
             stable)  DB_NAME="jappeos" ;;
             testing) DB_NAME="jappeos-testing" ;;
@@ -135,9 +132,9 @@ jobs:
             "
 
       - name: Commit and push (with retry for concurrent builds)
-        if: inputs.channel != 'none'
+        if: steps.channel.outputs.channel != 'none'
         run: |
-          CHANNEL="${{ inputs.channel }}"
+          CHANNEL="${{ steps.channel.outputs.channel }}"
 
           cd jappeos-repo
           git config user.name  "github-actions[bot]"
