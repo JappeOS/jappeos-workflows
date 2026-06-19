@@ -90,4 +90,5 @@ jobs:
           git fetch origin "refs/tags/$TAG"
           SHA=$(git rev-list -n 1 "$TAG")
 
+          echo "Outputting commit SHA: $SHA"
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
