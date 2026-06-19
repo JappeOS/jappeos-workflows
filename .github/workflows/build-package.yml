@@ -112,6 +112,7 @@ jobs:
           path: jappeos-repo
 
       - name: Add package to channel
+        if: inputs.channel != 'none'
         run: |
           CHANNEL="${{ inputs.channel }}"
           case "$CHANNEL" in
@@ -134,6 +135,7 @@ jobs:
             "
 
       - name: Commit and push (with retry for concurrent builds)
+        if: inputs.channel != 'none'
         run: |
           CHANNEL="${{ inputs.channel }}"
 
