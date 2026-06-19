@@ -27,11 +27,18 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
 
+      - name: Get tag
+        id: tag
+        run: |
+          CHANNEL="${{ github.ref_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="${CHANNEL}-v${VERSION}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Check if tag already exists
         id: tag_check
         run: |
-          CHANNEL="${{ github.ref_name }}"
-          TAG="${CHANNEL}-v${{ steps.version.outputs.version }}"
+          TAG="${{ steps.tag.outputs.tag }}"
           
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -43,7 +50,7 @@ jobs:
       - name: Update PKGBUILD
         if: steps.tag_check.outputs.exists == 'false'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ steps.tag.outputs.tag }}"
           sed -i "s/^pkgver=.*/pkgver=$VERSION/" PKGBUILD
           sed -i "s/^pkgrel=.*/pkgrel=1/"        PKGBUILD
 
@@ -63,9 +70,7 @@ jobs:
       - name: Create and push version tag
         if: steps.tag_check.outputs.exists == 'false'
         run: |
-          CHANNEL="${{ github.ref_name }}"
-          VERSION="${{ steps.version.outputs.version }}"
-          TAG="${CHANNEL}-v${VERSION}"
+          TAG="${{ steps.tag.outputs.tag }}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
