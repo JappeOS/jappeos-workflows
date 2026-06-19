@@ -17,6 +17,9 @@ on:
         required: false
         type: string
         default: "dev"
+      commit-sha:
+        required: false
+        type: string
   workflow_call:
     inputs:
       package-name:
@@ -33,6 +36,9 @@ on:
         required: false
         type: string
         default: "dev"
+      commit-sha:
+        required: false
+        type: string
 
 jobs:
   build:
@@ -41,6 +47,9 @@ jobs:
     steps:
       - name: Checkout package repo
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit-sha }}
+          fetch-depth: 0
 
       - name: Get channel
         id: channel
