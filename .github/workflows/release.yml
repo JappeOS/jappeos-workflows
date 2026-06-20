@@ -30,15 +30,20 @@ jobs:
           VERSION=$(grep '^pkgver=' PKGBUILD \
             | sed 's/pkgver=//' \
             | tr -d '[:space:]')
+          PKGREL=$(grep '^pkgrel=' PKGBUILD \
+            | sed 's/pkgrel=//' \
+            | tr -d '[:space:]')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $VERSION"
+          echo "pkgrel=$PKGREL" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION-$PKGREL"
 
       - name: Get tag
         id: tag
         run: |
           CHANNEL="${{ github.ref_name }}"
           VERSION="${{ steps.version.outputs.version }}"
-          TAG="${CHANNEL}-v${VERSION}"
+          PKGREL="${{ steps.version.outputs.pkgrel }}"
+          TAG="${CHANNEL}-v${VERSION}-${PKGREL}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Check if tag already exists
@@ -57,8 +62,8 @@ jobs:
         if: steps.tag_check.outputs.exists == 'false'
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
-          sed -i "s/^pkgrel=.*/pkgrel=1/" PKGBUILD
-          sed -i "s/^_tag=.*/_tag=$TAG/"  PKGBUILD
+          sed -i "s/^_tag=.*/_tag=$TAG/" PKGBUILD
+          # pkgrel is intentionally left as-is: the developer sets it explicitly
 
       - name: Commit and push updated PKGBUILD
         if: steps.tag_check.outputs.exists == 'false'
