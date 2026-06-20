@@ -164,11 +164,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           for i in 1 2 3 4 5; do
+            # Discard working tree changes from the previous step (or prior attempt)
+            # so rebase can proceed cleanly. Packages are re-copied by docker below.
+            git reset --hard HEAD
+            git clean -fd
+
             # Pull before each attempt so we rebase onto latest DB state
             git fetch origin gh-pages
             git rebase origin/gh-pages
 
-            # Re-run repo-add after rebase so the DB reflects any concurrent additions
+            # Re-copy packages and re-run repo-add after rebase so the DB
+            # reflects our package and any concurrent additions
             docker run --rm \
               -v ${{ github.workspace }}:/workspace \
               -v ${{ github.workspace }}/jappeos-repo:/repo \
@@ -180,6 +186,8 @@ jobs:
                     testing) DB_NAME=jappeos-testing ;;
                     dev)     DB_NAME=jappeos-dev ;;
                   esac
+                  mkdir -p /repo/\$CH
+                  cp /workspace/*.pkg.tar.* /repo/\$CH/
                   cd /repo/\$CH
                   repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
                 done
