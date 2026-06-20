@@ -13,7 +13,7 @@ on:
         type: boolean
         default: false
       channel:
-        description: "Target channel: dev | testing | stable"
+        description: "Target channel: dev | testing | stable | all | none"
         required: false
         type: string
         default: "dev"
@@ -32,7 +32,7 @@ on:
         type: boolean
         default: false
       channel:
-        description: "Target channel: dev | testing | stable"
+        description: "Target channel: dev | testing | stable | all | none"
         required: false
         type: string
         default: "dev"
@@ -58,7 +58,7 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             CHANNEL="${TAG%%-v*}"
           fi
-          
+
           CHANNEL="${CHANNEL:-${{ inputs.channel }}}"
           echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
 
@@ -117,33 +117,47 @@ jobs:
           ref: gh-pages
           path: jappeos-repo
 
-      - name: Add package to channel
+      - name: Add package to channel(s)
         if: steps.channel.outputs.channel != 'none'
         run: |
           CHANNEL="${{ steps.channel.outputs.channel }}"
-          case "$CHANNEL" in
-            stable)  DB_NAME="jappeos" ;;
-            testing) DB_NAME="jappeos-testing" ;;
-            dev)     DB_NAME="jappeos-dev" ;;
-            *)       echo "Unknown channel: $CHANNEL"; exit 1 ;;
-          esac
+
+          if [ "$CHANNEL" = "all" ]; then
+            CHANNELS="dev testing stable"
+          else
+            CHANNELS="$CHANNEL"
+          fi
 
           docker run --rm \
             -v ${{ github.workspace }}:/workspace \
             -v ${{ github.workspace }}/jappeos-repo:/repo \
             archlinux:latest /bin/bash -c "
               pacman -Syu --needed --noconfirm pacman-contrib
-              mkdir -p /repo/$CHANNEL
-              cp /workspace/*.pkg.tar.* /repo/$CHANNEL/
-              cd /repo/$CHANNEL
-              # -R removes old versions of the same package from the DB
-              repo-add -R ${DB_NAME}.db.tar.gz *.pkg.tar.*
+              for CH in $CHANNELS; do
+                case \"\$CH\" in
+                  stable)  DB_NAME=jappeos ;;
+                  testing) DB_NAME=jappeos-testing ;;
+                  dev)     DB_NAME=jappeos-dev ;;
+                  *)       echo \"Unknown channel: \$CH\"; exit 1 ;;
+                esac
+                mkdir -p /repo/\$CH
+                cp /workspace/*.pkg.tar.* /repo/\$CH/
+                cd /repo/\$CH
+                # -R removes old versions of the same package from the DB
+                repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
+              done
             "
 
       - name: Commit and push (with retry for concurrent builds)
         if: steps.channel.outputs.channel != 'none'
         run: |
           CHANNEL="${{ steps.channel.outputs.channel }}"
+
+          if [ "$CHANNEL" = "all" ]; then
+            CHANNELS="dev testing stable"
+          else
+            CHANNELS="$CHANNEL"
+          fi
 
           cd jappeos-repo
           git config user.name  "github-actions[bot]"
@@ -160,11 +174,20 @@ jobs:
               -v ${{ github.workspace }}/jappeos-repo:/repo \
               archlinux:latest /bin/bash -c "
                 pacman -Syu --needed --noconfirm pacman-contrib
-                cd /repo/$CHANNEL
-                repo-add -R ${DB_NAME}.db.tar.gz *.pkg.tar.*
+                for CH in $CHANNELS; do
+                  case \"\$CH\" in
+                    stable)  DB_NAME=jappeos ;;
+                    testing) DB_NAME=jappeos-testing ;;
+                    dev)     DB_NAME=jappeos-dev ;;
+                  esac
+                  cd /repo/\$CH
+                  repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
+                done
               " 2>/dev/null
 
-            git add "$CHANNEL/"
+            for CH in $CHANNELS; do
+              git add "$CH/"
+            done
             git commit -m "[$CHANNEL] Update ${{ inputs.package-name }}" || true
 
             git push && break
