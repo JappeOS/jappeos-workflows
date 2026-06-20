@@ -146,6 +146,7 @@ jobs:
                 # -R removes old versions of the same package from the DB
                 repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
               done
+              chown -R $(id -u):$(id -g) /repo
             "
 
       - name: Commit and push (with retry for concurrent builds)
@@ -191,6 +192,7 @@ jobs:
                   cd /repo/\$CH
                   repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
                 done
+                chown -R $(id -u):$(id -g) /repo
               " 2>/dev/null
 
             for CH in $CHANNELS; do
