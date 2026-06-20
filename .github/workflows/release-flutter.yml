@@ -2,6 +2,10 @@ name: Release (flutter)
 
 on:
   workflow_call:
+    outputs:
+      commit-sha:
+        description: "SHA of the commit that was tagged"
+        value: ${{ jobs.sync-and-tag.outputs.commit-sha }}
 
 jobs:
   sync-and-tag:
