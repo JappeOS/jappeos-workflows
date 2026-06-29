@@ -141,10 +141,19 @@ jobs:
                   *)       echo \"Unknown channel: \$CH\"; exit 1 ;;
                 esac
                 mkdir -p /repo/\$CH
+                
+                # Pre-delete any old versions of the packages we're about to add.
+                # rm -f is safe here even if the old file is already missing (handles the
+                # already-corrupted state where a previous run committed files but not the DB).
+                for pkg in /workspace/*.pkg.tar.*; do
+                  pkgname=\$(bsdtar -xOf \"\$pkg\" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p')
+                  [ -n \"\$pkgname\" ] && rm -f /repo/\$CH/\${pkgname}-*.pkg.tar.*
+                done
                 cp /workspace/*.pkg.tar.* /repo/\$CH/
                 cd /repo/\$CH
-                # -R removes old versions of the same package from the DB
-                repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
+                # Pass only the new packages, not the whole dir, so old versions
+                # aren't fed back into repo-add. Drop -R since we already cleaned up above.
+                repo-add \${DB_NAME}.db.tar.gz /workspace/*.pkg.tar.*
               done
               chown -R $(id -u):$(id -g) /repo
             "
@@ -188,9 +197,19 @@ jobs:
                     dev)     DB_NAME=jappeos-dev ;;
                   esac
                   mkdir -p /repo/\$CH
+                  
+                  # Pre-delete any old versions of the packages we're about to add.
+                  # rm -f is safe here even if the old file is already missing (handles the
+                  # already-corrupted state where a previous run committed files but not the DB).
+                  for pkg in /workspace/*.pkg.tar.*; do
+                    pkgname=\$(bsdtar -xOf \"\$pkg\" .PKGINFO 2>/dev/null | sed -n 's/^pkgname = //p')
+                    [ -n \"\$pkgname\" ] && rm -f /repo/\$CH/\${pkgname}-*.pkg.tar.*
+                  done
                   cp /workspace/*.pkg.tar.* /repo/\$CH/
                   cd /repo/\$CH
-                  repo-add -R \${DB_NAME}.db.tar.gz *.pkg.tar.*
+                  # Pass only the new packages, not the whole dir, so old versions
+                  # aren't fed back into repo-add. Drop -R since we already cleaned up above.
+                  repo-add \${DB_NAME}.db.tar.gz /workspace/*.pkg.tar.*
                 done
                 chown -R $(id -u):$(id -g) /repo
               " 2>/dev/null
