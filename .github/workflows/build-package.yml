@@ -36,6 +36,11 @@ on:
         required: false
         type: boolean
         default: false
+      flutter-version:
+        description: "Flutter version for build"
+        required: false
+        type: string
+        default: "3.41.4"
       channel:
         description: "Target channel: dev | testing | stable | all | none"
         required: false
