@@ -12,6 +12,11 @@ on:
         required: false
         type: boolean
         default: false
+      flutter-version:
+        description: "Flutter version for build"
+        required: false
+        type: string
+        default: "3.41.4"
       channel:
         description: "Target channel: dev | testing | stable | all | none"
         required: false
@@ -75,7 +80,7 @@ jobs:
 
             if [ '${{ inputs.flutter }}' = 'true' ]; then
               pacman -S --needed --noconfirm unzip curl clang cmake ninja
-              curl -fL https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.41.4-stable.tar.xz -o flutter.tar.xz
+              curl -fL 'https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${{ inputs.flutter-version }}-stable.tar.xz' -o flutter.tar.xz
               tar -xf flutter.tar.xz
               mv flutter /opt/flutter
               chown -R builder:builder /opt/flutter
