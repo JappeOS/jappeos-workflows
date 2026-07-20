@@ -78,6 +78,8 @@ jobs:
             useradd -m builder
             passwd -d builder
 
+            echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+
             pacman -Syu --noconfirm
             pacman -S --needed --noconfirm \
               base-devel git meson gtk3 adwaita-fonts \
