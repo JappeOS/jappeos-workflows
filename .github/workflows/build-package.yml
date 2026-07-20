@@ -108,6 +108,11 @@ jobs:
                 flutter precache --linux
               fi
 
+              which dart
+              dart --version
+              dart --disable-analytics --version
+              flutter --version
+
               makepkg -sf --noconfirm
               sudo cp ./*.pkg.tar.* /workspace/
             '
