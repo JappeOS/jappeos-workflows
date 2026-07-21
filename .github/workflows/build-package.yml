@@ -75,10 +75,16 @@ jobs:
       - name: Build package inside Arch container
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace -w /workspace archlinux:latest /bin/bash -c "
+            set -euxo pipefail
+            
             useradd -m builder
             passwd -d builder
 
-            echo -e "[multilib]\nInclude = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+            cat >> /etc/pacman.conf <<'EOF'
+
+            [multilib]
+            Include = /etc/pacman.d/mirrorlist
+            EOF
 
             pacman -Syu --noconfirm
             pacman -S --needed --noconfirm \
