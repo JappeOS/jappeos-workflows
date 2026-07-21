@@ -80,11 +80,7 @@ jobs:
             useradd -m builder
             passwd -d builder
 
-            cat >> /etc/pacman.conf <<'EOF'
-
-            [multilib]
-            Include = /etc/pacman.d/mirrorlist
-            EOF
+            printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
 
             pacman -Syu --noconfirm
             pacman -S --needed --noconfirm \
