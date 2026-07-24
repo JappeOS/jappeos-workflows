@@ -110,12 +110,11 @@ jobs:
 
               if [ \"\$FLUTTER\" = \"true\" ]; then
                 flutter precache --linux
+                which dart
+                dart --version
+                dart --disable-analytics --version
+                flutter --version
               fi
-
-              which dart
-              dart --version
-              dart --disable-analytics --version
-              flutter --version
 
               makepkg -sf --noconfirm
               sudo cp ./*.pkg.tar.* /workspace/
